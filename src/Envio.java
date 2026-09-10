@@ -2,232 +2,157 @@ import java.util.ArrayList;
 import java.util.List;
 
 public abstract class Envio {
-    private static final int CANTIDAD_MINIMA = 1;
     private static final int CANTIDAD_MAXIMA = 3;
     private static final double PESO_MAXIMO = 100;
+    private static int ultimoId = 0;
 
+    private final int id = ++ultimoId;
     private final List<Paquete> paquetes = new ArrayList<>();
-    // Conserva todos los acontecimientos del recorrido del envío.
+    // Todos los acontecimientos del recorrido, en orden.
     private final List<RegistroSeguimiento> historial = new ArrayList<>();
-    // Identifica al cliente dueño de este envío.
     private final Cliente cliente;
-    // Indica dónde se encuentra actualmente el envío.
-    private Sucursales sucursalActual;
-    // Indica la sucursal final a la que debe llegar el envío.
-    private final Sucursales destino;
-    private double costo;
+    private final Sucursal destino;
+    // Dónde está el envío ahora; null mientras viaja entre dos sucursales.
+    private Sucursal sucursalActual;
+    // Hacia dónde viaja; null cuando está detenido en una sucursal.
+    private Sucursal enCaminoA;
 
-    private Envio(Cliente cliente) {
-        this(cliente, Sucursales.VIEDMA, Sucursales.VIEDMA);
-    }
-
-    private Envio(Cliente cliente, Sucursales origen, Sucursales destino) {
+    // Cliente y Sucursal sólo guardan la referencia al envío, no le piden nada todavía.
+    @SuppressWarnings("this-escape")
+    protected Envio(Cliente cliente, Sucursal origen, Sucursal destino, Paquete... paquetes) {
         if (cliente == null) {
-            throw new IllegalArgumentException("El cliente no puede ser nulo.");
+            throw new IllegalArgumentException("El envío necesita un cliente.");
         }
         if (origen == null || destino == null) {
-            throw new IllegalArgumentException("El origen y el destino no pueden ser nulos.");
+            throw new IllegalArgumentException("El envío necesita origen y destino.");
+        }
+        if (paquetes.length == 0) {
+            throw new IllegalArgumentException("Un envío debe transportar al menos un paquete.");
         }
         this.cliente = cliente;
-        this.sucursalActual = origen;
         this.destino = destino;
-        // Registra este envío también en la lista del cliente.
+        this.sucursalActual = origen;
+        for (Paquete paquete : paquetes) {
+            agregarPaquete(paquete);
+        }
         cliente.agregarEnvio(this);
-        // Registra el envío en la sucursal donde comienza el recorrido.
-        origen.agregarEnvio(this);
+        origen.tomar(this);
         registrarMovimiento(origen, "Envío recibido");
     }
 
-    public Envio(Cliente cliente, Paquete paquete) {
-        this(cliente);
-        agregarPaquete(paquete);
-    }
-
-    public Envio(Cliente cliente, Sucursales origen, Sucursales destino, Paquete paquete) {
-        this(cliente, origen, destino);
-        agregarPaquete(paquete);
-    }
-
-    public Envio(Cliente cliente, List<Paquete> paquetesIniciales) {
-        this(cliente);
-        if (paquetesIniciales == null || paquetesIniciales.isEmpty()) {
-            throw new IllegalArgumentException("Un envío debe tener al menos un paquete.");
-        }
-        for (Paquete paquete : paquetesIniciales) {
-            agregarPaquete(paquete);
-        }
-    }
-
-    public void agregarPaquete(Paquete paquete) {
+    private void agregarPaquete(Paquete paquete) {
         if (paquete == null) {
             throw new IllegalArgumentException("El paquete no puede ser nulo.");
         }
-        if (paquetes.size() >= CANTIDAD_MAXIMA) {
-            throw new IllegalStateException("No se pueden agregar más de " + CANTIDAD_MAXIMA + " paquetes.");
+        if (paquetes.size() == CANTIDAD_MAXIMA) {
+            throw new IllegalStateException("Un envío no puede llevar más de " + CANTIDAD_MAXIMA + " paquetes.");
         }
+        if (pesoTotal() + paquete.getPeso() > PESO_MAXIMO) {
+            throw new IllegalStateException("El envío no puede superar los " + PESO_MAXIMO + "kg.");
+        }
+        paquete.asignarAEnvio();
         paquetes.add(paquete);
     }
 
-    public List<Paquete> getPaquetes() {
-        return new ArrayList<>(paquetes);
-    }
-
-    // Permite consultar a qué cliente pertenece el envío.
-    public Cliente getCliente() {
-        return cliente;
-    }
-
-    // Devuelve la sucursal en la que se procesa actualmente el envío.
-    public Sucursales getSucursalActual() {
-        return sucursalActual;
-    }
-
-    // Devuelve la sucursal final del recorrido.
-    public Sucursales getDestino() {
-        return destino;
-    }
-
-    // Agrega un acontecimiento al historial interno del envío.
-    void registrarMovimiento(Sucursales sucursal, String descripcion) {
-        historial.add(new RegistroSeguimiento(this, sucursal, descripcion));
-    }
-
-    // Devuelve una copia del historial completo del envío.
-    public List<RegistroSeguimiento> getHistorial() {
-        return new ArrayList<>(historial);
-    }
-
-    // Muestra todos los acontecimientos registrados en el recorrido.
-    public void mostrarHistorial() {
-        for (RegistroSeguimiento movimiento : historial) {
-            System.out.println(movimiento);
+    // Las cuatro operaciones del recorrido: sólo la sucursal que tiene el envío puede pedirlas.
+    void preparar() {
+        for (Paquete paquete : paquetes) {
+            paquete.prepararParaEnvio();
         }
+        registrarMovimiento(sucursalActual, "Envío preparado");
     }
 
-    // Devuelve el último acontecimiento o null si todavía no hay registros.
-    public RegistroSeguimiento getUltimoMovimiento() {
-        if (historial.isEmpty()) {
-            return null;
-        }
-        return historial.get(historial.size() - 1);
-    }
-
-    // Devuelve las sucursales por las que pasó el envío, sin repetirlas.
-    public List<Sucursales> getSucursalesRecorridas() {
-        List<Sucursales> sucursales = new ArrayList<>();
-        for (RegistroSeguimiento movimiento : historial) {
-            if (!sucursales.contains(movimiento.getSucursal())) {
-                sucursales.add(movimiento.getSucursal());
-            }
-        }
-        return sucursales;
-    }
-
-    // Mueve el envío de la sucursal actual a otra sucursal del recorrido.
-    public void moverASucursal(Sucursales nuevaSucursal) {
-        if (nuevaSucursal == null) {
-            throw new IllegalArgumentException("La nueva sucursal no puede ser nula.");
-        }
-        if (nuevaSucursal == sucursalActual) {
-            throw new IllegalStateException("El envío ya se encuentra en esa sucursal.");
-        }
-        if (estaEntregado()) {
-            throw new IllegalStateException("No se puede mover un envío ya entregado.");
-        }
-        sucursalActual.quitarEnvio(this);
-        sucursalActual = nuevaSucursal;
-        nuevaSucursal.agregarEnvio(this);
-    }
-
-    // Actualiza la sucursal actual cuando una sucursal recibe el envío.
-    void recibirEnSucursal(Sucursales nuevaSucursal) {
-        if (nuevaSucursal == null) {
-            throw new IllegalArgumentException("La sucursal no puede ser nula.");
-        }
-        if (sucursalActual != nuevaSucursal) {
-            throw new IllegalStateException("El envío debe ser despachado antes de recibirse en otra sucursal.");
-        }
-        nuevaSucursal.agregarEnvio(this);
-        registrarMovimiento(nuevaSucursal, "Envío recibido");
-    }
-
-    // Actualiza el recorrido cuando la sucursal actual despacha el envío.
-    void despacharASucursal(Sucursales siguienteSucursal) {
-        if (siguienteSucursal == null) {
-            throw new IllegalArgumentException("La siguiente sucursal no puede ser nula.");
-        }
+    void despachar(Sucursal siguiente) {
         if (estaEntregado()) {
             throw new IllegalStateException("No se puede despachar un envío ya entregado.");
         }
+        for (Paquete paquete : paquetes) {
+            paquete.iniciarViaje();
+        }
         registrarMovimiento(sucursalActual, "Envío despachado");
-        moverASucursal(siguienteSucursal);
-        registrarMovimiento(siguienteSucursal, "Envío recibido");
+        sucursalActual.soltar(this);
+        sucursalActual = null;
+        enCaminoA = siguiente;
     }
 
-    // Determina si todos los paquetes del envío ya fueron entregados.
-    private boolean estaEntregado() {
-        if (paquetes.isEmpty()) {
-            return false;
+    void recibir(Sucursal sucursal) {
+        if (enCaminoA != sucursal) {
+            throw new IllegalStateException("El envío " + id + " no fue despachado hacia " + sucursal + ".");
+        }
+        sucursalActual = sucursal;
+        enCaminoA = null;
+        sucursal.tomar(this);
+        registrarMovimiento(sucursal, "Envío recibido");
+    }
+
+    void entregar() {
+        if (sucursalActual != destino) {
+            throw new IllegalStateException("El envío " + id + " sólo puede entregarse en su destino (" + destino + ").");
         }
         for (Paquete paquete : paquetes) {
-            if (!"Entregado".equals(paquete.getEstado())) {
+            paquete.entregar();
+        }
+        registrarMovimiento(destino, "Envío entregado");
+    }
+
+    // Un envío está entregado cuando lo están todos sus paquetes.
+    public boolean estaEntregado() {
+        for (Paquete paquete : paquetes) {
+            if (!paquete.estaEntregado()) {
                 return false;
             }
         }
         return true;
     }
 
-    public double getCosto() {
-        return costo;
+    // Consultas sobre el recorrido: se le preguntan al envío, dueño de su historial.
+    public void mostrarHistorial() {
+        for (RegistroSeguimiento movimiento : historial) {
+            System.out.println("   " + movimiento);
+        }
     }
 
-    public void iniciarEnvio() {
-        chequearEnvioValido();
+    public RegistroSeguimiento getUltimoMovimiento() {
+        return historial.get(historial.size() - 1);
+    }
+
+    public List<Sucursal> getSucursalesRecorridas() {
+        List<Sucursal> recorridas = new ArrayList<>();
+        for (RegistroSeguimiento movimiento : historial) {
+            if (!recorridas.contains(movimiento.getSucursal())) {
+                recorridas.add(movimiento.getSucursal());
+            }
+        }
+        return recorridas;
+    }
+
+    private void registrarMovimiento(Sucursal sucursal, String descripcion) {
+        historial.add(new RegistroSeguimiento(sucursal, descripcion));
+    }
+
+    // Se calcula al momento de preguntarlo: nunca queda desactualizado.
+    public double getCosto() { return pesoTotal() * tarifa(); }
+
+    private double pesoTotal() {
+        double total = 0;
         for (Paquete paquete : paquetes) {
-            paquete.prepararParaEnvio();
+            total += paquete.getPeso();
         }
+        return total;
     }
 
-    public void iniciarDistribucion() {
-        chequearEnvioValido();
-        for (Paquete paquete : paquetes) {
-            paquete.marcarEnDistribucion();
-        }
-    }
-
-    public void finalizarEnvio() {
-        chequearEnvioValido();
-        if (estaEntregado()) {
-            throw new IllegalStateException("El envío ya fue entregado.");
-        }
-        for (Paquete paquete : paquetes) {
-            if ("Recibido".equals(paquete.getEstado())) paquete.prepararParaEnvio();
-            if ("En preparación".equals(paquete.getEstado())) paquete.marcarEnDistribucion();
-            if ("En distribución".equals(paquete.getEstado())) paquete.entregar();
-        }
-        registrarMovimiento(sucursalActual, "Envío entregado");
-    }
-
-    public void calcularCosto() {
-        double pesoTotal = 0;
-        for (Paquete paquete : paquetes) {
-            pesoTotal += paquete.getPeso();
-        }
-        chequearPeso(pesoTotal);
-        costo = pesoTotal * tarifa();
-    }
-
+    // Cada tipo de envío cobra distinto; el cálculo del costo es uno solo.
     protected abstract double tarifa();
 
-    private void chequearPeso(double peso) {
-        if (peso <= 0 || peso >= PESO_MAXIMO) {
-            throw new IllegalArgumentException("El peso total debe estar entre 0 y " + PESO_MAXIMO + "kg.");
-        }
-    }
+    public int getId() { return id; }
+    public Cliente getCliente() { return cliente; }
+    public Sucursal getDestino() { return destino; }
+    public Sucursal getSucursalActual() { return sucursalActual; }
+    public List<Paquete> getPaquetes() { return new ArrayList<>(paquetes); }
 
-    private void chequearEnvioValido() {
-        if (paquetes.size() < CANTIDAD_MINIMA) {
-            throw new IllegalStateException("El envío debe tener al menos " + CANTIDAD_MINIMA + " paquete.");
-        }
+    @Override
+    public String toString() {
+        String ubicacion = sucursalActual != null ? "en " + sucursalActual : "viajando hacia " + enCaminoA;
+        return "Envío " + id + " - " + getClass().getSimpleName() + " - " + cliente + " - " + ubicacion;
     }
 }

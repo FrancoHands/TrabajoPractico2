@@ -1,14 +1,8 @@
 public class EnvioEstandar extends Envio {
-    public EnvioEstandar(Cliente cliente, Paquete paquete) {
-        super(cliente, paquete);
-    }
-
-    public EnvioEstandar(Cliente cliente, Sucursales origen, Sucursales destino, Paquete paquete) {
-        super(cliente, origen, destino, paquete);
+    public EnvioEstandar(Cliente cliente, Sucursal origen, Sucursal destino, Paquete... paquetes) {
+        super(cliente, origen, destino, paquetes);
     }
 
     @Override
-    protected double tarifa() {
-        return 10;
-    }
+    protected double tarifa() { return 10; }
 }

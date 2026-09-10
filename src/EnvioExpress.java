@@ -1,15 +1,8 @@
 public class EnvioExpress extends Envio {
-    public EnvioExpress(Cliente cliente, Paquete paquete) {
-        super(cliente, paquete);
-    }
-
-    public EnvioExpress(Cliente cliente, Sucursales origen, Sucursales destino, Paquete paquete) {
-        super(cliente, origen, destino, paquete);
+    public EnvioExpress(Cliente cliente, Sucursal origen, Sucursal destino, Paquete... paquetes) {
+        super(cliente, origen, destino, paquetes);
     }
 
     @Override
-    protected double tarifa() {
-        return 15;
-    }
+    protected double tarifa() { return 15; }
 }
-

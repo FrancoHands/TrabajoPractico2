@@ -1,14 +1,8 @@
 public class EnvioInternacional extends Envio {
-    public EnvioInternacional(Cliente cliente, Paquete paquete) {
-        super(cliente, paquete);
-    }
-
-    public EnvioInternacional(Cliente cliente, Sucursales origen, Sucursales destino, Paquete paquete) {
-        super(cliente, origen, destino, paquete);
+    public EnvioInternacional(Cliente cliente, Sucursal origen, Sucursal destino, Paquete... paquetes) {
+        super(cliente, origen, destino, paquetes);
     }
 
     @Override
-    protected double tarifa() {
-        return 20;
-    }
+    protected double tarifa() { return 20; }
 }

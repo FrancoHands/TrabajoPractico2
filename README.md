@@ -1,3 +1,16 @@
+# Sistema de Gestión de Envíos y Distribución
+
+Trabajo Práctico N°2 — evolución del sistema desarrollado en el TP N°1.
+
+## Cómo ejecutarlo
+
+```
+javac -encoding UTF-8 -d bin src/*.java
+java -cp bin Main
+```
+
+## Preguntas de reflexión (TP1)
+
 1.  ¿Qué responsabilidades asignaste a cada objeto? 
     - A la clase "Paquete" le asigné las responsabilidades de almacenar su propio id, descripción, peso y estado. El paquete controla sus propias transiciones de estado a través de métodos semánticos que representan acciones del negocio: prepararParaEnvio(), marcarEnDistribucion(), entregar() y devolver(). Cada método valida que el estado actual sea el correcto antes de hacer la transición.
     - A la clase "Envio" le asigné la responsabilidad de gestionar sus paquetes (mínimo 1, máximo 3), orquestar las transiciones de estado de sus paquetes llamando a sus métodos semánticos, y calcular el costo total sumando el peso de sus propios paquetes multiplicado por la tarifa del tipo de envío.
